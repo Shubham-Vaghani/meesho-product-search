@@ -8,56 +8,91 @@ import Card from "@mui/material/Card";
 import CardContent from "@mui/material/CardContent";
 import CardMedia from "@mui/material/CardMedia";
 import Typography from "@mui/material/Typography";
-import { fetchProductList } from "../service/productList";
 
 function App() {
   const [searchTerm, setSearchTerm] = useState("");
   const [products, setProducts] = useState<any>([]);
   const [page, setPage] = useState(1);
+  const [offset, setOffset] = useState(0);
+  const [cursor, setCursor] = useState("");
+  const [searchSessionId, setSearchSessionId] = useState("");
   const [loading, setLoading] = useState(false);
-  const [hasMore, setHasMore] = useState(true);
   const loader = useRef(null); // Ref for the loader element
 
   const handleSearch = () => {
-    setPage(1); // Reset to first page on new search
+    // Reset to first page on new search
     setProducts([]);
-    loadProducts(searchTerm, 1); // Load products based on search term
+    setPage(1); // Reset page to 1
+    setOffset(0); // Reset offset to 0
+    setCursor(""); // Reset cursor
+    loadProducts(); // Load products based on search term
   };
 
-  const loadProducts = (searchTerm: any, page: any) => {
+  const loadProducts = async () => {
     if (loading) return; // Prevent multiple fetches
+
     setLoading(true);
-    fetchProductList(searchTerm, page)
-      .then((data) => {
-        setProducts((prevProducts: any) => [...prevProducts, ...data.products]);
-        setHasMore(data.products.length > 0); // Stop if no more products
-        setLoading(false);
-      })
-      .catch((error) => {
-        console.error("Error fetching products:", error);
-        setLoading(false);
+
+    const payload = {
+      query: searchTerm,
+      type: "text_search",
+      page: page,
+      offset: offset,
+      limit: 20,
+      cursor: cursor,
+      search_session_id: searchSessionId,
+      isDevicePhone: false,
+    };
+
+    try {
+      const response = await fetch("/api/products", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(payload),
       });
+      const res = await response.json();
+
+      setCursor(res?.cursor);
+      setSearchSessionId(res?.search_session_id);
+      if (res?.catalogs.length !== 0) {
+        setProducts((prevProducts: any) => [...prevProducts, ...res?.catalogs]);
+      } else {
+        // Stop loading if no more products
+        console.log("No more products to load.");
+      }
+    } catch (error) {
+      console.error("Error fetching products:", error);
+    } finally {
+      setLoading(false);
+    }
   };
 
   useEffect(() => {
     // IntersectionObserver to detect scroll to bottom
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting && hasMore) {
+        if (entries[0].isIntersecting) {
           setPage((prevPage) => prevPage + 1); // Increment page when reaching bottom
+          setOffset((prevOffset) => prevOffset + 20);
         }
       },
       { threshold: 1.0 }
     );
+
     if (loader.current) observer.observe(loader.current);
     return () => {
       if (loader.current) observer.unobserve(loader.current);
     };
-  }, [hasMore]);
+  }, []);
 
   useEffect(() => {
-    if (page > 1) {
-      loadProducts(searchTerm, page); // Fetch next page when page changes
+    if (page > 1 && searchTerm) {
+      loadProducts(); // Fetch next page when page changes
+    } else {
+      setPage(1);
+      setOffset(0);
     }
   }, [page]);
 
@@ -97,8 +132,8 @@ function App() {
       </div>
       <div className="my-5">
         <Grid container spacing={4}>
-          {products.map((product: any) => (
-            <Grid item key={product.id} xs={12} sm={6} md={4} lg={3}>
+          {products.map((product: any, i: number) => (
+            <Grid item key={`${product.id}-${i}`} xs={12} sm={6} md={4} lg={3}>
               <Card>
                 <CardMedia
                   component="img"
@@ -119,10 +154,14 @@ function App() {
           ))}
         </Grid>
       </div>
-      {loading && <CircularProgress className="my-5" />}
+      {loading && (
+        <div className="flex justify-center">
+          <CircularProgress className="my-5" />
+        </div>
+      )}
       {/* Loader for detecting scroll to bottom */}
-      <div ref={loader} className="my-5">
-        {hasMore ? "Loading more products..." : "No more products"}
+      <div ref={loader} className="my-5 mx-auto">
+        Loading more products...
       </div>
     </div>
   );
