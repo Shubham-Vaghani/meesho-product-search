@@ -17,30 +17,36 @@ function App() {
   const [cursor, setCursor] = useState("");
   const [searchSessionId, setSearchSessionId] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isScrollFetch, setIsScrollFetch] = useState(false); // Flag for scroll fetching
+  const [hasSearched, setHasSearched] = useState(false); // Flag to detect if search has been performed
+
   const loader = useRef(null); // Ref for the loader element
 
+  // Handle new search, reset everything
   const handleSearch = () => {
-    // Reset to first page on new search
-    setProducts([]);
-    setPage(1); // Reset page to 1
-    setOffset(0); // Reset offset to 0
+    setPage(1); // Reset page
+    setOffset(0); // Reset offset
     setCursor(""); // Reset cursor
-    loadProducts(); // Load products based on search term
+    setSearchSessionId(""); // Reset search session ID
+    setProducts([]); // Clear previous products
+    setIsScrollFetch(false); // Reset scroll fetch flag
+    setHasSearched(true); // Mark search as performed
+    loadProducts(true); // Call API to load products for new search
   };
 
-  const loadProducts = async () => {
-    if (loading) return; // Prevent multiple fetches
-
+  // Load products from API
+  const loadProducts = async (isNewSearch = false) => {
+    if (loading) return; // Prevent multiple fetches at the same time
     setLoading(true);
 
     const payload = {
       query: searchTerm,
       type: "text_search",
-      page: page,
-      offset: offset,
+      page: isScrollFetch && !isNewSearch ? page : 1, // Use incremented page only for scroll
+      offset: isScrollFetch && !isNewSearch ? offset : 0, // Use offset only for scroll
       limit: 20,
-      cursor: cursor,
-      search_session_id: searchSessionId,
+      cursor: isNewSearch || page === 1 ? "" : cursor, // Reset cursor for new search
+      search_session_id: isNewSearch || page === 1 ? "" : searchSessionId, // Reset session ID for new search
       isDevicePhone: false,
     };
 
@@ -54,12 +60,13 @@ function App() {
       });
       const res = await response.json();
 
-      setCursor(res?.cursor);
-      setSearchSessionId(res?.search_session_id);
+      setCursor(res?.cursor); // Update cursor
+      setSearchSessionId(res?.search_session_id); // Update session ID
+      setSearchTerm(res?.corrected_search_term || searchTerm); // Update search term if corrected
+
       if (res?.catalogs.length !== 0) {
         setProducts((prevProducts: any) => [...prevProducts, ...res?.catalogs]);
       } else {
-        // Stop loading if no more products
         console.log("No more products to load.");
       }
     } catch (error) {
@@ -73,9 +80,11 @@ function App() {
     // IntersectionObserver to detect scroll to bottom
     const observer = new IntersectionObserver(
       (entries) => {
-        if (entries[0].isIntersecting) {
-          setPage((prevPage) => prevPage + 1); // Increment page when reaching bottom
-          setOffset((prevOffset) => prevOffset + 20);
+        if (entries[0].isIntersecting && !loading && hasSearched) {
+          // Only trigger on scroll after a search has been made
+          setIsScrollFetch(true); // Set scroll fetch flag
+          setPage((prevPage) => prevPage + 1); // Increment page
+          setOffset((prevOffset) => prevOffset + 20); // Increment offset
         }
       },
       { threshold: 1.0 }
@@ -85,14 +94,12 @@ function App() {
     return () => {
       if (loader.current) observer.unobserve(loader.current);
     };
-  }, []);
+  }, [loading, hasSearched]);
 
   useEffect(() => {
-    if (page > 1 && searchTerm) {
-      loadProducts(); // Fetch next page when page changes
-    } else {
-      setPage(1);
-      setOffset(0);
+    // Only load products on page change if it's triggered by scroll
+    if (isScrollFetch && page > 1) {
+      loadProducts(false); // Fetch next page of products on scroll
     }
   }, [page]);
 
