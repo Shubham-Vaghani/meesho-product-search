@@ -2,12 +2,17 @@
 import { useState, useEffect, useRef } from "react";
 import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
-import { CircularProgress } from "@mui/material";
-import Grid from "@mui/material/Grid";
-import Card from "@mui/material/Card";
-import CardContent from "@mui/material/CardContent";
-import CardMedia from "@mui/material/CardMedia";
-import Typography from "@mui/material/Typography";
+import {
+  CircularProgress,
+  Grid,
+  Card,
+  CardContent,
+  CardMedia,
+  Typography,
+} from "@mui/material";
+import Slider from "react-slick";
+import "slick-carousel/slick/slick.css";
+import "slick-carousel/slick/slick-theme.css";
 
 function App() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -103,6 +108,10 @@ function App() {
     }
   }, [page]);
 
+  const openProductDetail = (slug: any, id: any) => {
+    window.open(`https://www.meesho.com/${slug}/p/${id}`, "_blank");
+  };
+
   return (
     <div className="bg-white p-8 rounded-lg w-full">
       <div>
@@ -140,22 +149,44 @@ function App() {
       <div className="my-5">
         <Grid container spacing={4}>
           {products.map((product: any, i: number) => (
-            <Grid item key={`${product.id}-${i}`} xs={12} sm={6} md={4} lg={3}>
-              <Card>
-                <CardMedia
-                  component="img"
-                  height="140"
-                  image={product.image}
-                  alt={product.name}
-                />
-                <CardContent>
-                  <Typography gutterBottom variant="h5" component="div">
-                    {product.name}
-                  </Typography>
-                  <Typography variant="body2" color="text.secondary">
-                    {product.price}
-                  </Typography>
-                </CardContent>
+            <Grid item key={`${product.id}-${i}`} xs={6} sm={4} md={3} lg={2}>
+              <Card
+                onClick={() =>
+                  openProductDetail(product.original_slug, product.product_id)
+                }
+                className="cursor-pointer h-[300px] sm:h-[400px] pb-4"
+              >
+                <div className="h-4/5 overflow-hidden">
+                  {/* Image Slider */}
+                  <Slider
+                    dots={true}
+                    infinite={true}
+                    speed={500}
+                    slidesToShow={1}
+                    slidesToScroll={1}
+                    adaptiveHeight={true}
+                  >
+                    {product.product_images.map((img: any) => (
+                      <CardMedia
+                        component="img"
+                        key={img.id}
+                        image={img.url}
+                        alt={`Image ${img.id}`}
+                        className="h-full w-full object-cover"
+                      />
+                    ))}
+                  </Slider>
+                </div>
+                <div className="h-1/5">
+                  <CardContent>
+                    <Typography gutterBottom variant="h6" component="div">
+                      {product.name}
+                    </Typography>
+                    <Typography variant="body2" color="text.secondary">
+                      {product.price}
+                    </Typography>
+                  </CardContent>
+                </div>
               </Card>
             </Grid>
           ))}
