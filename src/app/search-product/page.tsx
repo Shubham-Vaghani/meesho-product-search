@@ -13,6 +13,7 @@ import {
 import Slider from "react-slick";
 import "slick-carousel/slick/slick.css";
 import "slick-carousel/slick/slick-theme.css";
+import RatingChip from "../common/RatingChip";
 
 function App() {
   const [searchTerm, setSearchTerm] = useState("");
@@ -41,7 +42,7 @@ function App() {
 
   // Load products from API
   const loadProducts = async (isNewSearch = false) => {
-    if (loading) return; // Prevent multiple fetches at the same time
+    if (loading || !searchTerm) return; // Prevent multiple fetches at the same time
     setLoading(true);
 
     const payload = {
@@ -113,11 +114,8 @@ function App() {
   };
 
   return (
-    <div className="bg-white p-8 rounded-lg w-full">
+    <div className="bg-white p-3 sm:p-8 rounded-lg w-full">
       <div>
-        <h1 className="text-2xl font-semibold mb-6 text-center text-gray-800">
-          Search Product
-        </h1>
         <div className="space-y-4">
           <TextField
             id="outlined-basic"
@@ -147,7 +145,7 @@ function App() {
         </div>
       </div>
       <div className="my-5">
-        <Grid container spacing={4}>
+        <Grid container spacing={1}>
           {products.map((product: any, i: number) => (
             <Grid item key={`${product.id}-${i}`} xs={6} sm={4} md={3} lg={2}>
               <Card
@@ -156,7 +154,7 @@ function App() {
                 }
                 className="cursor-pointer h-[300px] sm:h-[400px] pb-4"
               >
-                <div className="h-4/5 overflow-hidden">
+                <div className="h-[60%] overflow-hidden">
                   {/* Image Slider */}
                   <Slider
                     dots={true}
@@ -177,14 +175,42 @@ function App() {
                     ))}
                   </Slider>
                 </div>
-                <div className="h-1/5">
-                  <CardContent>
-                    <Typography gutterBottom variant="h6" component="div">
-                      {product.name}
-                    </Typography>
-                    <Typography variant="body2" color="text.secondary">
-                      {product.price}
-                    </Typography>
+                <div>
+                  <CardContent className="flex flex-col sm:space-y-2 py-0 px-2">
+                    {/* Price */}
+                    <span className="text-xl font-bold text-green-600 mt-1 sm:mt-3">
+                      ₹{product?.min_catalog_price}
+                    </span>
+
+                    {/* Product Name */}
+                    <span className="text-xs sm:text-base font-semibold break-words line-clamp-1">
+                      {product?.name}
+                    </span>
+
+                    {/* hero Product Name */}
+                    <span className="text-xs font-semibold break-words line-clamp-1">
+                      {product?.hero_product_name}
+                    </span>
+
+                    {/* Rating */}
+                    <RatingChip
+                      rating={product?.catalog_reviews_summary?.average_rating}
+                      review={product?.catalog_reviews_summary?.rating_count}
+                    />
+                    {/* Chips (Rating, Ad, Sort State) */}
+                    <div className="flex items-center flex-wrap space-x-2 mt-1 sm:mt-2">
+                      {/* Ad Chip */}
+                      {product?.isAdProduct && (
+                        <span className="text-xs font-semibold px-2 py-1 bg-yellow-500 text-white rounded-full">
+                          Ad
+                        </span>
+                      )}
+
+                      {/* Sort State Chip */}
+                      <span className="text-xs font-bold px-2 py-1 bg-gray-200 text-gray-800 rounded-full">
+                        {product?.state_code}
+                      </span>
+                    </div>
                   </CardContent>
                 </div>
               </Card>
