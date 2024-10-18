@@ -176,7 +176,7 @@ function App() {
                   </Slider>
                 </div>
                 <div>
-                  <CardContent className="flex flex-col sm:space-y-2 py-0 px-2">
+                  <CardContent className="!py-0 px-2 flex flex-col sm:space-y-2">
                     {/* Price */}
                     <span className="text-xl font-bold text-green-600 mt-1 sm:mt-3">
                       ₹{product?.min_catalog_price}
