@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import axios from "axios";
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,33 +13,15 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Call Meesho's autosuggest API
-    const response = await fetch(
+    // Call Meesho's autosuggest API using axios
+    const res = await axios.get(
       `https://www.meesho.com/api/v1/search/autosuggest?prefix=${encodeURIComponent(
         prefix
-      )}`,
-      {
-        method: "GET",
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-          Accept: "application/json",
-          "Accept-Language": "en-US,en;q=0.9",
-          "Cache-Control": "no-cache",
-        },
-        // Add timeout
-        signal: AbortSignal.timeout(8000), // 8 seconds timeout
-      }
+      )}`
     );
 
-    if (!response.ok) {
-      throw new Error(`Meesho API responded with status: ${response.status}`);
-    }
-
-    const data = await response.json();
-
     // Extract suggestions from the response
-    const suggestions = data?.payload?.suggestions || [];
+    const suggestions = res.data?.payload?.suggestions || [];
 
     return NextResponse.json({
       success: true,
