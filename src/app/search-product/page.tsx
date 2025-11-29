@@ -28,6 +28,7 @@ import {
   Paper,
   Popper,
   ClickAwayListener,
+  Typography,
 } from "@mui/material";
 import {
   Search as SearchIcon,
@@ -35,9 +36,11 @@ import {
   Refresh as RefreshIcon,
   TrendingUp as TrendingIcon,
   Help as HelpIcon,
+  FilterList as FilterIcon,
 } from "@mui/icons-material";
 import RatingChip from "../common/RatingChip";
 import SearchHelpDialog from "./components/SearchHelpDialog";
+import ShippingFilter from "./components/ShippingFilter";
 
 // Lazy load heavy components
 const ProductCard = lazy(() => import("./components/ProductCard"));
@@ -64,6 +67,11 @@ function App() {
   const [loadingSuggestions, setLoadingSuggestions] = useState(false);
   const [suggestionAnchorEl, setSuggestionAnchorEl] =
     useState<HTMLElement | null>(null);
+  const [shippingFilter, setShippingFilter] = useState<{
+    enabled: boolean;
+    minRange: number;
+    maxRange: number;
+  }>({ enabled: false, minRange: 50, maxRange: 60 });
   const maxRetries = 3;
   const retryDelay = 1000; // 1 second
 
@@ -151,8 +159,9 @@ function App() {
     setError(null); // Clear any previous errors
     setRetryCount(0); // Reset retry count
     setShowError(false); // Hide error messages
+    resetFilters(); // Reset filters for new search
 
-    // Add to search history
+    // Add search term to history
     setSearchHistory((prev) => {
       const newHistory = [
         searchTerm.trim(),
@@ -292,6 +301,57 @@ function App() {
   const handleCloseSuggestions = useCallback(() => {
     setShowSuggestions(false);
   }, []);
+
+  // Handle shipping filter toggle
+  const handleShippingFilterToggle = useCallback(() => {
+    setShippingFilter((prev) => ({
+      ...prev,
+      enabled: !prev.enabled,
+    }));
+  }, []);
+
+  // Handle shipping filter change
+  const handleShippingFilterChange = useCallback(
+    (filter: { enabled: boolean; minRange: number; maxRange: number }) => {
+      setShippingFilter(filter);
+    },
+    []
+  );
+
+  // Reset shipping filter when starting new search
+  const resetFilters = useCallback(() => {
+    setShippingFilter({
+      enabled: false,
+      minRange: 50,
+      maxRange: 60,
+    });
+  }, []);
+
+  // Filter products based on shipping charges
+  const filteredProducts = useMemo(() => {
+    if (!shippingFilter.enabled || !products || products.length === 0) {
+      return products;
+    }
+
+    return products.filter((product: any) => {
+      const shipping = product?.shipping_charges_adjustment;
+
+      // Handle free shipping case
+      if (shippingFilter.minRange === 0 && shippingFilter.maxRange === 0) {
+        return shipping === null || shipping === undefined || shipping === 0;
+      }
+
+      // Handle null, undefined, or 0 (free shipping) for non-free filter ranges
+      if (shipping === null || shipping === undefined || shipping === 0) {
+        return false;
+      }
+
+      return (
+        shipping >= shippingFilter.minRange &&
+        shipping <= shippingFilter.maxRange
+      );
+    });
+  }, [products, shippingFilter]);
 
   // Handle input focus
   const handleInputFocus = useCallback(() => {
@@ -571,12 +631,49 @@ function App() {
           {/* Compact Search Section */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-100 p-2 sm:p-3">
             {searchForm}
+
+            {/* Shipping Filter Section */}
+            {hasSearched && products.length > 0 && (
+              <ShippingFilter
+                shippingFilter={shippingFilter}
+                onFilterChange={handleShippingFilterChange}
+                totalProducts={products.length}
+                filteredProducts={filteredProducts.length}
+              />
+            )}
           </div>
         </div>
       </div>
 
       {/* Main Content */}
       <div className="max-w-7xl mx-auto p-3 sm:p-6">
+        {/* Filter Status Banner */}
+        {shippingFilter.enabled &&
+          hasSearched &&
+          filteredProducts.length !== products.length && (
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <FilterIcon className="text-blue-600" fontSize="small" />
+                  <Typography variant="body2" className="text-blue-800">
+                    Showing products with shipping charges ₹
+                    {shippingFilter.minRange}
+                    {shippingFilter.minRange !== shippingFilter.maxRange
+                      ? `-₹${shippingFilter.maxRange}`
+                      : shippingFilter.minRange === 0
+                      ? " (Free shipping)"
+                      : "+"}
+                  </Typography>
+                </div>
+                <Chip
+                  label={`${filteredProducts.length} of ${products.length} products`}
+                  size="small"
+                  color="primary"
+                />
+              </div>
+            </div>
+          )}
+
         {/* Error Handling */}
         <Snackbar
           open={showError}
@@ -628,8 +725,8 @@ function App() {
             <div className="min-h-[400px]">
               <Suspense
                 fallback={
-                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
-                    {Array.from({ length: 12 }).map((_, i) => (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6">
+                    {Array.from({ length: 8 }, (_, i) => (
                       <Skeleton
                         key={i}
                         variant="rectangular"
@@ -641,13 +738,46 @@ function App() {
                 }
               >
                 <VirtualizedGrid
-                  products={products}
+                  products={filteredProducts}
                   onProductClick={openProductDetail}
                 />
               </Suspense>
             </div>
 
             {/* No Results */}
+            {!loading &&
+              hasSearched &&
+              filteredProducts.length === 0 &&
+              products.length > 0 &&
+              shippingFilter.enabled && (
+                <div className="text-center py-12">
+                  <div className="text-gray-400 mb-4">
+                    <FilterIcon sx={{ fontSize: 48 }} />
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-600 mb-2">
+                    No products match your filter
+                  </h3>
+                  <p className="text-gray-500 text-sm mb-4">
+                    No products found with shipping charges between ₹
+                    {shippingFilter.minRange}-₹{shippingFilter.maxRange}
+                  </p>
+                  <Button
+                    variant="outlined"
+                    onClick={() =>
+                      handleShippingFilterChange({
+                        enabled: false,
+                        minRange: 50,
+                        maxRange: 60,
+                      })
+                    }
+                    startIcon={<ClearIcon />}
+                  >
+                    Clear Filter
+                  </Button>
+                </div>
+              )}
+
+            {/* No Results - Original */}
             {!loading && hasSearched && products.length === 0 && !error && (
               <div className="text-center py-12">
                 <div className="text-gray-400 mb-4">
