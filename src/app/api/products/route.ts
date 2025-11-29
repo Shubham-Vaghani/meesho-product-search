@@ -30,8 +30,8 @@ export async function POST(req: Request) {
     const payload = await req.json(); // Get the payload from the request body
     const response = await axios.post(
       "https://www.meesho.com/api/v1/products/search",
-      payload, // Forward the payload to the external API
-      config
+      payload // Forward the payload to the external API
+      // config
     );
 
     return NextResponse.json(response.data); // Return the response data
