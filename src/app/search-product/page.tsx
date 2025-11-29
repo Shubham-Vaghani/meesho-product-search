@@ -437,7 +437,7 @@ function App() {
                     {suggestions.map((suggestion, index) => (
                       <ListItem
                         key={index}
-                        button
+                        component="div"
                         onClick={() => handleSuggestionClick(suggestion)}
                         className="hover:bg-indigo-50 cursor-pointer border-b border-gray-50 last:border-b-0"
                       >
